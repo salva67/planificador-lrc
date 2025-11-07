@@ -214,13 +214,13 @@ def generar_pdf(df_ej):
         safe_multicell(pdf, max_w, 5, meta_line)
         pdf.ln(1)
 
-        # --------------------------------------------------
+                # --------------------------------------------------
         # Objetivo
         # --------------------------------------------------
         objetivo = limpiar_texto_pdf(row.get("objetivo_principal", ""))
         if objetivo:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "🎯 Objetivo:", ln=True)
+            pdf.cell(0, 5, "Objetivo:", ln=True)
             pdf.set_font("Arial", "", 10)
             safe_multicell(pdf, max_w, 5, objetivo)
             pdf.ln(1)
@@ -234,7 +234,7 @@ def generar_pdf(df_ej):
 
         if espacio or jugadores_min or jugadores_max:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "📍 Logística:", ln=True)
+            pdf.cell(0, 5, "Logística:", ln=True)
             pdf.set_font("Arial", "", 10)
 
             if espacio:
@@ -252,7 +252,7 @@ def generar_pdf(df_ej):
         desc = limpiar_texto_pdf(row.get("descripcion_paso_a_paso", ""))
         if desc:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "📝 Descripción:", ln=True)
+            pdf.cell(0, 5, "Descripción:", ln=True)
             pdf.set_font("Arial", "", 10)
             safe_multicell(pdf, max_w, 5, desc)
             pdf.ln(1)
@@ -263,10 +263,11 @@ def generar_pdf(df_ej):
         coaching = limpiar_texto_pdf(row.get("coaching_points", ""))
         if coaching:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "📌 Coaching points:", ln=True)
+            pdf.cell(0, 5, "Coaching points:", ln=True)
             pdf.set_font("Arial", "", 10)
             safe_multicell(pdf, max_w, 5, coaching)
             pdf.ln(1)
+
 
     # Generar bytes del PDF
     pdf_output = pdf.output(dest="S")
