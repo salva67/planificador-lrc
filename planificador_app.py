@@ -152,68 +152,131 @@ def safe_multicell(pdf, w, h, txt):
 # 6️⃣ Función para generar PDF
 # ===============================================
 def generar_pdf(df_ej):
-    pdf = FPDF()
+    pdf = FPDF(format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_margins(15, 15, 15)
+
     pdf.add_page()
+
+    # Título principal
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Plan de Entrenamiento - Lujan Rugby Club", ln=True)
+    pdf.cell(0, 10, "Plan de Entrenamiento - Luján Rugby Club", ln=True, align="C")
     pdf.ln(4)
 
+    # Resumen general
     total_minutos = 0
     contenido = df_ej.copy()
 
-    for _, row in contenido.iterrows():
-        nombre = f"{row['id_ejercicio']} - {row['nombre']} ({row['duracion_min']} min)"
-        fase = f"Fase: {row['fase_juego']} | Intensidad: {row['intensidad']}"
-        objetivo = f"Objetivo: {row['objetivo_principal']}"
-        espacio = f"Espacio: {row.get('espacio', '')}"
-        jugadores = f"Jugadores: {row.get('jugadores_min', '')} - {row.get('jugadores_max', '')}"
+    try:
+        total_minutos = int(contenido["duracion_min"].fillna(0).sum())
+    except Exception:
+        total_minutos = 0
 
-        # Título del ejercicio
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 6, f"Cantidad de ejercicios: {len(contenido)}", ln=True)
+    pdf.cell(0, 6, f"Duración total estimada: {total_minutos} minutos", ln=True)
+    pdf.ln(4)
+
+    # Ancho máximo útil (respetando márgenes)
+    max_w = pdf.w - pdf.l_margin - pdf.r_margin
+
+    # Iterar ejercicios
+    for idx, (_, row) in enumerate(contenido.iterrows(), start=1):
+        # Separador entre ejercicios (excepto el primero)
+        if idx > 1:
+            pdf.ln(2)
+            pdf.set_draw_color(180, 180, 180)
+            pdf.set_line_width(0.3)
+            y = pdf.get_y()
+            pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
+            pdf.ln(3)
+            pdf.set_draw_color(0, 0, 0)
+
+        # --------------------------------------------------
+        # Encabezado del ejercicio
+        # --------------------------------------------------
+        nombre = f"{idx}. {row['id_ejercicio']} - {row['nombre']} ({row['duracion_min']} min)"
+
         pdf.set_font("Arial", "B", 12)
-        safe_multicell(pdf, 180, 7, nombre)
+        safe_multicell(pdf, max_w, 6, nombre)
 
-        pdf.set_font("Arial", "", 11)
-        safe_multicell(pdf, 180, 6, fase)
-        safe_multicell(pdf, 180, 6, objetivo)
+        # Línea meta: fase / subtema / intensidad
+        fase = limpiar_texto_pdf(row.get("fase_juego", ""))
+        subtema = limpiar_texto_pdf(row.get("subtema", ""))
+        intensidad = limpiar_texto_pdf(row.get("intensidad", ""))
+        meta_line = f"Fase: {fase}"
+        if subtema:
+            meta_line += f" | Subtema: {subtema}"
+        if intensidad:
+            meta_line += f" | Intensidad: {intensidad}"
 
-        esp_limpio = limpiar_texto_pdf(espacio)
-        if esp_limpio:
-            safe_multicell(pdf, 180, 6, esp_limpio)
+        pdf.set_font("Arial", "", 10)
+        safe_multicell(pdf, max_w, 5, meta_line)
+        pdf.ln(1)
 
-        jug_limpio = limpiar_texto_pdf(jugadores)
-        if jug_limpio:
-            safe_multicell(pdf, 180, 6, jug_limpio)
+        # --------------------------------------------------
+        # Objetivo
+        # --------------------------------------------------
+        objetivo = limpiar_texto_pdf(row.get("objetivo_principal", ""))
+        if objetivo:
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(0, 5, "🎯 Objetivo:", ln=True)
+            pdf.set_font("Arial", "", 10)
+            safe_multicell(pdf, max_w, 5, objetivo)
+            pdf.ln(1)
 
+        # --------------------------------------------------
+        # Espacio y jugadores
+        # --------------------------------------------------
+        espacio = limpiar_texto_pdf(row.get("espacio", ""))
+        jugadores_min = limpiar_texto_pdf(row.get("jugadores_min", ""))
+        jugadores_max = limpiar_texto_pdf(row.get("jugadores_max", ""))
+
+        if espacio or jugadores_min or jugadores_max:
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(0, 5, "📍 Logística:", ln=True)
+            pdf.set_font("Arial", "", 10)
+
+            if espacio:
+                safe_multicell(pdf, max_w, 5, f"- Espacio: {espacio}")
+            if jugadores_min or jugadores_max:
+                jug_text = f"- Jugadores: {jugadores_min}"
+                if jugadores_max:
+                    jug_text += f" - {jugadores_max}"
+                safe_multicell(pdf, max_w, 5, jug_text)
+            pdf.ln(1)
+
+        # --------------------------------------------------
+        # Descripción paso a paso
+        # --------------------------------------------------
         desc = limpiar_texto_pdf(row.get("descripcion_paso_a_paso", ""))
         if desc:
-            pdf.set_font("Arial", "I", 10)
-            safe_multicell(pdf, 180, 5, f"Descripción: {desc}")
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(0, 5, "📝 Descripción:", ln=True)
+            pdf.set_font("Arial", "", 10)
+            safe_multicell(pdf, max_w, 5, desc)
+            pdf.ln(1)
 
+        # --------------------------------------------------
+        # Coaching points
+        # --------------------------------------------------
         coaching = limpiar_texto_pdf(row.get("coaching_points", ""))
         if coaching:
-            pdf.set_font("Arial", "I", 10)
-            safe_multicell(pdf, 180, 5, f"Coaching points: {coaching}")
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(0, 5, "📌 Coaching points:", ln=True)
+            pdf.set_font("Arial", "", 10)
+            safe_multicell(pdf, max_w, 5, coaching)
+            pdf.ln(1)
 
-        pdf.ln(3)
-
-        try:
-            total_minutos += int(row.get("duracion_min", 0))
-        except Exception:
-            pass
-
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 8, f"Duración total estimada: {total_minutos} minutos", ln=True)
-
-    # 👇 Cambio importante acá
-    pdf_output = pdf.output(dest="S")   # en fpdf2 suele ser bytearray
+    # Generar bytes del PDF
+    pdf_output = pdf.output(dest="S")
     if isinstance(pdf_output, str):
         pdf_bytes = pdf_output.encode("latin-1", "ignore")
     else:
-        pdf_bytes = bytes(pdf_output)   # bytearray -> bytes
+        pdf_bytes = bytes(pdf_output)
 
     return pdf_bytes
+
 
 # 7️⃣ Botón para generar y descargar PDF
 # ===============================================
