@@ -4,6 +4,8 @@ import gspread
 from google.oauth2.service_account import Credentials
 import json
 from fpdf import FPDF
+import math
+from fpdf.errors import FPDFException
 
 # ===============================================
 # 1️⃣ Configuración Streamlit
@@ -110,6 +112,42 @@ seleccionados = edited_df[edited_df["Seleccionar"] == True]
 
 st.write(f"✅ Ejercicios seleccionados: **{len(seleccionados)}**")
 
+
+
+def limpiar_texto_pdf(texto, max_word_len=40):
+    """Normaliza texto para el PDF: quita saltos raros y parte palabras MUY largas."""
+    if texto is None or (isinstance(texto, float) and math.isnan(texto)):
+        return ""
+    if not isinstance(texto, str):
+        texto = str(texto)
+
+    # Quitar saltos de línea y caracteres raros
+    texto = texto.replace("\r", " ").replace("\n", " ")
+
+    # Dividir en palabras y partir las que sean demasiado largas
+    palabras = texto.split(" ")
+    palabras_limpias = []
+    for w in palabras:
+        if len(w) > max_word_len:
+            for i in range(0, len(w), max_word_len):
+                palabras_limpias.append(w[i:i+max_word_len])
+        else:
+            palabras_limpias.append(w)
+
+    return " ".join(palabras_limpias)
+
+
+def safe_multicell(pdf, w, h, txt):
+    """Wrapper para multi_cell que nunca revienta aunque el texto sea raro."""
+    txt = limpiar_texto_pdf(txt)
+    if not txt.strip():
+        return
+    try:
+        pdf.multi_cell(w, h, txt)
+    except FPDFException:
+        # Si aún así falla, truncamos fuerte para evitar romper el PDF
+        pdf.multi_cell(w, h, txt[:80])
+
 # ===============================================
 # 6️⃣ Función para generar PDF
 # ===============================================
@@ -122,36 +160,47 @@ def generar_pdf(df_ej):
     pdf.ln(4)
 
     total_minutos = 0
+    contenido = df_ej.copy()
 
-    for _, row in df_ej.iterrows():
+    for _, row in contenido.iterrows():
         nombre = f"{row['id_ejercicio']} - {row['nombre']} ({row['duracion_min']} min)"
         fase = f"Fase: {row['fase_juego']} | Intensidad: {row['intensidad']}"
         objetivo = f"Objetivo: {row['objetivo_principal']}"
         espacio = f"Espacio: {row.get('espacio', '')}"
         jugadores = f"Jugadores: {row.get('jugadores_min', '')} - {row.get('jugadores_max', '')}"
 
+        # Título del ejercicio
         pdf.set_font("Arial", "B", 12)
-        pdf.multi_cell(0, 7, nombre)
-        pdf.set_font("Arial", "", 11)
-        pdf.multi_cell(0, 6, fase)
-        pdf.multi_cell(0, 6, objetivo)
-        if espacio.strip():
-            pdf.multi_cell(0, 6, espacio)
-        if jugadores.strip():
-            pdf.multi_cell(0, 6, jugadores)
+        safe_multicell(pdf, 180, 7, nombre)
 
-        desc = str(row.get("descripcion_paso_a_paso", "") or "").strip()
+        pdf.set_font("Arial", "", 11)
+        safe_multicell(pdf, 180, 6, fase)
+        safe_multicell(pdf, 180, 6, objetivo)
+
+        esp_limpio = limpiar_texto_pdf(espacio)
+        if esp_limpio:
+            safe_multicell(pdf, 180, 6, esp_limpio)
+
+        jug_limpio = limpiar_texto_pdf(jugadores)
+        if jug_limpio:
+            safe_multicell(pdf, 180, 6, jug_limpio)
+
+        desc = limpiar_texto_pdf(row.get("descripcion_paso_a_paso", ""))
         if desc:
             pdf.set_font("Arial", "I", 10)
-            pdf.multi_cell(0, 5, f"Descripción: {desc}")
+            safe_multicell(pdf, 180, 5, f"Descripción: {desc}")
 
-        coaching = str(row.get("coaching_points", "") or "").strip()
+        coaching = limpiar_texto_pdf(row.get("coaching_points", ""))
         if coaching:
             pdf.set_font("Arial", "I", 10)
-            pdf.multi_cell(0, 5, f"Coaching points: {coaching}")
+            safe_multicell(pdf, 180, 5, f"Coaching points: {coaching}")
 
         pdf.ln(3)
-        total_minutos += int(row.get("duracion_min", 0))
+
+        try:
+            total_minutos += int(row.get("duracion_min", 0))
+        except Exception:
+            pass
 
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
@@ -160,21 +209,3 @@ def generar_pdf(df_ej):
     # Devolver bytes del PDF
     pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
     return pdf_bytes
-
-# ===============================================
-# 7️⃣ Botón para generar y descargar PDF
-# ===============================================
-st.subheader("📄 Exportar sesión")
-
-if len(seleccionados) == 0:
-    st.info("Seleccioná al menos un ejercicio en la tabla para habilitar el PDF.")
-else:
-    if st.button("📄 Generar PDF con ejercicios seleccionados"):
-        pdf_bytes = generar_pdf(seleccionados)
-        st.success("✅ PDF generado. Podés descargarlo abajo.")
-        st.download_button(
-            "⬇️ Descargar plan de entrenamiento (PDF)",
-            data=pdf_bytes,
-            file_name="plan_entrenamiento_LRC.pdf",
-            mime="application/pdf",
-        )
