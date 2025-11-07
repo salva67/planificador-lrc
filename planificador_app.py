@@ -144,8 +144,8 @@ def safe_multicell(pdf, w, h, txt):
         return
     try:
         pdf.multi_cell(w, h, txt)
-    except FPDFException:
-        # Si aún así falla, truncamos fuerte para evitar romper el PDF
+    except Exception:
+        # Si falla, cortamos el texto para evitar romper el PDF
         pdf.multi_cell(w, h, txt[:80])
 
 # ===============================================
@@ -162,7 +162,7 @@ def generar_pdf(df_ej):
     # Encabezado
     # ============================
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Plan de Entrenamiento - Luján Rugby Club", ln=True, align="C")
+    safe_multicell(pdf, 0, 10, "Plan de Entrenamiento - Luján Rugby Club")
     pdf.ln(4)
 
     contenido = df_ej.copy()
@@ -174,12 +174,9 @@ def generar_pdf(df_ej):
         total_minutos = 0
 
     pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 6, f"Cantidad de ejercicios: {len(contenido)}", ln=True)
-    pdf.cell(0, 6, f"Duración total estimada: {total_minutos} minutos", ln=True)
+    safe_multicell(pdf, 0, 6, f"Cantidad de ejercicios: {len(contenido)}")
+    safe_multicell(pdf, 0, 6, f"Duración total estimada: {total_minutos} minutos")
     pdf.ln(6)
-
-    # Ancho máximo útil (aunque con w=0 en multi_cell usamos el disponible)
-    max_w = pdf.w - pdf.l_margin - pdf.r_margin
 
     # ============================
     # Ejercicio por ejercicio
@@ -200,10 +197,7 @@ def generar_pdf(df_ej):
         # Encabezado del ejercicio
         # -------------------------
         nombre = f"{idx}. {row['id_ejercicio']} - {row['nombre']} ({row['duracion_min']} min)"
-        nombre = limpiar_texto_pdf(nombre)
-
-        pdf.set_font("Arial", "B", 12)
-        pdf.multi_cell(0, 6, nombre)  # 0 = hasta margen derecho
+        safe_multicell(pdf, 0, 6, nombre)
         pdf.ln(1)
 
         # Línea de fase / subtema / intensidad
@@ -220,11 +214,8 @@ def generar_pdf(df_ej):
             meta_partes.append(f"Intensidad: {intensidad}")
 
         meta_line = " | ".join(meta_partes)
-
-        if meta_line:
-            pdf.set_font("Arial", "", 10)
-            pdf.multi_cell(0, 5, meta_line)
-            pdf.ln(1)
+        safe_multicell(pdf, 0, 5, meta_line)
+        pdf.ln(1)
 
         # -------------------------
         # Objetivo
@@ -232,13 +223,13 @@ def generar_pdf(df_ej):
         objetivo = limpiar_texto_pdf(row.get("objetivo_principal", ""))
         if objetivo:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "Objetivo:", ln=True)
+            safe_multicell(pdf, 0, 5, "Objetivo:")
             pdf.set_font("Arial", "", 10)
-            pdf.multi_cell(0, 5, objetivo)
+            safe_multicell(pdf, 0, 5, objetivo)
             pdf.ln(1)
 
         # -------------------------
-        # Logística (espacio y jugadores)
+        # Logística
         # -------------------------
         espacio = limpiar_texto_pdf(row.get("espacio", ""))
         jugadores_min = limpiar_texto_pdf(row.get("jugadores_min", ""))
@@ -246,29 +237,26 @@ def generar_pdf(df_ej):
 
         if espacio or jugadores_min or jugadores_max:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "Logística:", ln=True)
+            safe_multicell(pdf, 0, 5, "Logística:")
             pdf.set_font("Arial", "", 10)
-
             if espacio:
-                pdf.multi_cell(0, 5, f"- Espacio: {espacio}")
-
+                safe_multicell(pdf, 0, 5, f"- Espacio: {espacio}")
             if jugadores_min or jugadores_max:
                 jug_text = f"- Jugadores: {jugadores_min}"
                 if jugadores_max:
                     jug_text += f" - {jugadores_max}"
-                pdf.multi_cell(0, 5, jug_text)
-
+                safe_multicell(pdf, 0, 5, jug_text)
             pdf.ln(1)
 
         # -------------------------
-        # Descripción paso a paso
+        # Descripción
         # -------------------------
         desc = limpiar_texto_pdf(row.get("descripcion_paso_a_paso", ""))
         if desc:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "Descripción:", ln=True)
+            safe_multicell(pdf, 0, 5, "Descripción:")
             pdf.set_font("Arial", "", 10)
-            pdf.multi_cell(0, 5, desc)
+            safe_multicell(pdf, 0, 5, desc)
             pdf.ln(1)
 
         # -------------------------
@@ -277,9 +265,9 @@ def generar_pdf(df_ej):
         coaching = limpiar_texto_pdf(row.get("coaching_points", ""))
         if coaching:
             pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 5, "Coaching points:", ln=True)
+            safe_multicell(pdf, 0, 5, "Coaching points:")
             pdf.set_font("Arial", "", 10)
-            pdf.multi_cell(0, 5, coaching)
+            safe_multicell(pdf, 0, 5, coaching)
             pdf.ln(2)
 
     # ============================
