@@ -138,35 +138,43 @@ def limpiar_texto_pdf(texto, max_word_len=40):
 
 
 def safe_multicell(pdf, w, h, txt):
-    """Wrapper para multi_cell que evita errores con palabras largas o ancho 0."""
+    """Wrapper inteligente para multi_cell con ancho adaptativo y protección total."""
     txt = limpiar_texto_pdf(txt)
     if not txt.strip():
         return
 
-    # Calcular ancho efectivo (ancho total menos márgenes)
-    max_width = pdf.w - pdf.l_margin - pdf.r_margin
+    # Ancho útil real (dinámico)
+    page_width = pdf.w
+    left_margin = pdf.l_margin
+    right_margin = pdf.r_margin
+    max_width = page_width - left_margin - right_margin
+
+    # Si no se define un ancho, usar el total disponible
     if not w or w == 0:
         w = max_width
 
+    # Intentar imprimir normalmente
     try:
         pdf.multi_cell(w, h, txt)
     except Exception:
-        # Si falla, partimos el texto en segmentos más pequeños
+        # Si FPDF falla, dividimos manualmente las líneas
         palabras = txt.split(" ")
         linea = ""
         for palabra in palabras:
-            # Si la palabra es demasiado larga, la partimos
-            while len(palabra) > 60:
-                chunk = palabra[:60]
-                palabra = palabra[60:]
-                pdf.multi_cell(w, h, chunk)
-            if len(linea) + len(palabra) + 1 > 80:
-                pdf.multi_cell(w, h, linea)
-                linea = palabra
+            # Medir la longitud de la palabra en mm
+            palabra_ancho = pdf.get_string_width(palabra + " ")
+
+            # Si la línea actual + palabra excede el ancho, imprimir y bajar una línea
+            if pdf.get_string_width(linea + palabra + " ") > w:
+                pdf.multi_cell(w, h, linea.strip())
+                linea = palabra + " "
             else:
-                linea += " " + palabra
-        if linea:
-            pdf.multi_cell(w, h, linea)
+                linea += palabra + " "
+
+        # Imprimir la última línea si quedó algo pendiente
+        if linea.strip():
+            pdf.multi_cell(w, h, linea.strip())
+
 
 
 # ===============================================
