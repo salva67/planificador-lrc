@@ -207,7 +207,11 @@ def generar_pdf(df_ej):
     pdf.cell(0, 8, f"Duración total estimada: {total_minutos} minutos", ln=True)
 
     # Devolver bytes del PDF
-    pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
+    pdf_data = pdf.output(dest="S")  # fpdf2 suele devolver bytes
+    if isinstance(pdf_data, str):
+        pdf_bytes = pdf_data.encode("latin-1", "ignore")
+    else:
+        pdf_bytes = pdf_data
     return pdf_bytes
 
 # 7️⃣ Botón para generar y descargar PDF
