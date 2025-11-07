@@ -209,3 +209,20 @@ def generar_pdf(df_ej):
     # Devolver bytes del PDF
     pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
     return pdf_bytes
+
+# 7️⃣ Botón para generar y descargar PDF
+# ===============================================
+st.subheader("📄 Exportar sesión")
+
+if len(seleccionados) == 0:
+    st.info("Seleccioná al menos un ejercicio en la tabla para habilitar el PDF.")
+else:
+    if st.button("📄 Generar PDF con ejercicios seleccionados"):
+        pdf_bytes = generar_pdf(seleccionados)
+        st.success("✅ PDF generado. Podés descargarlo abajo.")
+        st.download_button(
+            "⬇️ Descargar plan de entrenamiento (PDF)",
+            data=pdf_bytes,
+            file_name="plan_entrenamiento_LRC.pdf",
+            mime="application/pdf",
+        )
